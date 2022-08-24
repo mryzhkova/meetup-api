@@ -6,3 +6,13 @@ export const meetupDTO = meetup => ({
   date: meetup.meetupdate,
   location: meetup.meetuplocation
 });
+
+export const visitorDTO = visitor => ({
+  id: visitor.userid,
+  login: visitor.userlogin
+});
+
+export const userDTO = user => ({
+  id: user.userid,
+  login: user.userlogin
+});

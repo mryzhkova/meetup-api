@@ -1,11 +1,11 @@
 import { StatusCodes } from 'http-status-codes';
 
 import db from '../configs/db.js';
-import { meetupDTO } from '../helpers/dtoHelper.js';
-import { validateCreateMeetup, validateUpdateMeetup } from '../helpers/validator.js';
+import { meetupDTO, visitorDTO } from '../helpers/dtoHelpers.js';
+import { checkValue, validateCreateMeetup, validateUpdateMeetup } from '../helpers/validations.js';
 import queries from '../queries/meetup.queries.js';
 
-const { CREATED, INTERNAL_SERVER_ERROR, OK, BAD_REQUEST } = StatusCodes;
+const { CREATED, INTERNAL_SERVER_ERROR, OK, BAD_REQUEST, NOT_FOUND } = StatusCodes;
 
 const createMeetup = async (req, res) => {
   try {
@@ -14,9 +14,10 @@ const createMeetup = async (req, res) => {
       return res.status(BAD_REQUEST).json(error.details);
     }
     const { title, desc, date, location, tags } = value;
+    const { userid } = req.user;
     const newMeetup = await db.query(
       queries.createMeetup,
-      [title, desc, tags, date, location]
+      [title, desc, tags, date, location, userid]
     );
     res.status(CREATED).json(meetupDTO(newMeetup.rows[0]));
   } catch (err) {
@@ -36,9 +37,9 @@ const getMeetups = async (req, res) => {
 const getMeetup = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const meetup = await db.query(queries.getMeetup, [id]);
+    const meetup = await db.query(queries.getMeetupById, [id]);
     if (!meetup.rows.length) {
-      return res.status(BAD_REQUEST).json('Meetup does not exist');
+      return res.status(NOT_FOUND).json('Meetup does not exist');
     }
     res.status(OK).json(meetupDTO(meetup.rows[0]));
   } catch (err) {
@@ -53,12 +54,13 @@ const updateMeetup = async (req, res) => {
       return res.status(BAD_REQUEST).json(error.details);
     }
     const id = parseInt(req.params.id, 10);
-    const { title, desc, date, location, tags } = value;
-    const meetup = await db.query(
+    const meetup = await db.query(queries.getMeetupById, [id]);
+    const { title, desc, date, location, tags } = checkValue(value, meetup.rows[0]);
+    const newMeetup = await db.query(
       queries.updateMeetup,
       [title, desc, tags, date, location, id]
     );
-    res.status(OK).json(meetupDTO(meetup.rows[0]));
+    res.status(OK).json(meetupDTO(newMeetup.rows[0]));
   } catch (err) {
     res.status(INTERNAL_SERVER_ERROR).json({ message: err.message });
   }
@@ -69,9 +71,42 @@ const deleteMeetup = async (req, res) => {
     const id = parseInt(req.params.id, 10);
     const meetup = await db.query(queries.deleteMeetup, [id]);
     if (!meetup.rows.length) {
-      return res.status(BAD_REQUEST).json('Meetup does not exist');
+      return res.status(NOT_FOUND).json('Meetup does not exist');
     }
     res.status(OK).json(meetupDTO(meetup.rows[0]));
+  } catch (err) {
+    res.status(INTERNAL_SERVER_ERROR).json({ message: err.message });
+  }
+};
+
+const addMeetupVisitor = async (req, res) => {
+  try {
+    const { userId } = req.user;
+    const { meetupId } = req.params;
+    const meetup = await db.query(queries.getCurrentMeetup, [meetupId]);
+    if (!meetup.rows.length) {
+      return res.status(NOT_FOUND).json('Meetup does not exist');
+    }
+    const candidate = await db.query(queries.findVisitor, [userId, meetupId]);
+    if (candidate.rows.length) {
+      return res.status(BAD_REQUEST).json('The user is already a visitor');
+    }
+    const visitor = await db.query(queries.createVisitor, [meetupId, userId]);
+    res.status(CREATED).json(visitorDTO(visitor.rows[0]));
+  } catch (err) {
+    res.status(INTERNAL_SERVER_ERROR).json({ message: err.message });
+  }
+};
+
+const getMeetupVisitors = async (req, res) => {
+  try {
+    const { meetupId } = req.params;
+    const meetup = await db.query(queries.getCurrentMeetup, [meetupId]);
+    if (!meetup.rows.length) {
+      return res.status(NOT_FOUND).json('Meetup does not exist');
+    }
+    const visitors = await db.query(queries.getVisitorsByIds, [meetupId]);
+    res.status(OK).json(visitors.rows.map(visitorDTO));
   } catch (err) {
     res.status(INTERNAL_SERVER_ERROR).json({ message: err.message });
   }
@@ -82,5 +117,7 @@ export default {
   getMeetups,
   getMeetup,
   updateMeetup,
-  deleteMeetup
+  deleteMeetup,
+  addMeetupVisitor,
+  getMeetupVisitors
 };
