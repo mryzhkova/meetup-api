@@ -81,18 +81,18 @@ const deleteMeetup = async (req, res) => {
 
 const addMeetupVisitor = async (req, res) => {
   try {
-    const { userId } = req.user;
-    const { meetupId } = req.params;
-    const meetup = await db.query(queries.getCurrentMeetup, [meetupId]);
+    const { userid } = req.user;
+    const { id } = req.params;
+    const meetup = await db.query(queries.getMeetupById, [id]);
     if (!meetup.rows.length) {
       return res.status(NOT_FOUND).json('Meetup does not exist');
     }
-    const candidate = await db.query(queries.findVisitor, [userId, meetupId]);
+    const candidate = await db.query(queries.findVisitor, [userid, id]);
     if (candidate.rows.length) {
       return res.status(BAD_REQUEST).json('The user is already a visitor');
     }
-    const visitor = await db.query(queries.createVisitor, [meetupId, userId]);
-    res.status(CREATED).json(visitorDTO(visitor.rows[0]));
+    await db.query(queries.createVisitor, [id, userid]);
+    res.status(CREATED).json('Registration for the meetup was successful');
   } catch (err) {
     res.status(INTERNAL_SERVER_ERROR).json({ message: err.message });
   }
@@ -100,12 +100,12 @@ const addMeetupVisitor = async (req, res) => {
 
 const getMeetupVisitors = async (req, res) => {
   try {
-    const { meetupId } = req.params;
-    const meetup = await db.query(queries.getCurrentMeetup, [meetupId]);
+    const { id } = req.params;
+    const meetup = await db.query(queries.getMeetupById, [id]);
     if (!meetup.rows.length) {
       return res.status(NOT_FOUND).json('Meetup does not exist');
     }
-    const visitors = await db.query(queries.getVisitorsByIds, [meetupId]);
+    const visitors = await db.query(queries.getVisitorsByIds, [id]);
     res.status(OK).json(visitors.rows.map(visitorDTO));
   } catch (err) {
     res.status(INTERNAL_SERVER_ERROR).json({ message: err.message });

@@ -16,10 +16,10 @@ const updateMeetup = `UPDATE meetups
   meetupLocation = $5
   WHERE meetupId = $6 RETURNING *, ${dateTochar}`;
 const getCurrentMeetup = 'SELECT * FROM currentMeetups WHERE meetupId = $1';
-const findVisitor = 'SELECT * FROM currentMeetups WHERE userpId = $1 AND meetupId = $2';
-const createVisitor = 'INSERT INTO currentMeetups (meetupId, userId) VALUES ($1, $2) RETURNING *';
-const getVisitorsByIds = `SELECT users.userId users.userLogin FROM users
- INNER JOIN currentMeetups ON users.userId = currentMeetups.userId WHERE currentMeetups.meetupId = $1`;
+const findVisitor = 'SELECT * FROM currentMeetups WHERE userId = $1 AND meetupId = $2';
+const createVisitor = 'INSERT INTO currentMeetups (meetupId, userId) VALUES ($1, $2)';
+const getVisitorsByIds = `SELECT users.userId, users.userLogin FROM users
+  INNER JOIN currentMeetups ON users.userId = currentMeetups.userId WHERE currentMeetups.meetupId = $1`;
 
 export default {
   getMeetups,
